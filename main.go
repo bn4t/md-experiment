@@ -54,8 +54,6 @@ func main() {
 		blocks = append(blocks, b[:8])
 	}
 
-	log.Print("padding (bytes): ", p)
-
 	var out []byte
 
 	// xor all the blocks

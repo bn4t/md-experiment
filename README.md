@@ -4,12 +4,12 @@ Playing around with the merkle damgard construction.
 
 ## Specs
 
-- Block size: 8 bytes (64 bits)
-- The padding length (`p`) is `p = 8-len(M)%8` where `M` is the message to be hashed in bytes.
+- Block size: 32 bytes
+- The padding length (`p`) is `p = 32-len(M)%32` where `M` is the message to be hashed in bytes.
 - The padding starts with a `1`. All other bytes are zeros.
-- Additionally after the padding (`P`) has been applied to the message `M`, the length of `M` as int64 is appended to `M||P`. This results in the Input `I`. The input `I` is then split into blocks of 8 bytes since `len(I)%8 = 0` 
-- The compression function `f` is xor. While this makes `f` collision resistant it also makes `f` vulnerable to second preimage attacks.
-- The IV is `mdexpmnt` (8 bytes).
+- Additionally after the padding (`P`) has been applied to the message `M`, the length of `M` as int64 is appended to `M||P`.
+- The compression function `f` is xor.
+- The IV is `3.141592653589793238462643383279` (32 bytes).
  
  ![merkle damgard](merkle-damgard.png)
  

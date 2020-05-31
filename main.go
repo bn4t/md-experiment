@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"github.com/templexxx/xorsimd"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 )
@@ -15,59 +16,60 @@ func main() {
 	if len(os.Args) == 0 {
 		return
 	}
-	M, err := ioutil.ReadFile(os.Args[1])
+	fi, err := os.Open(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer fi.Close()
 
-	// get the length of M before the padding is added
-	l := int64(len(M))
+	out := IV    // the output of most recent invocation of the compression function; at the beginning this is the IV
+	var b []byte // the currently used message block
 
-	// calculate how many bytes of padding are needed
-	p := 8 - len(M)%8
+	for {
+		b = make([]byte, 8) // clear the value of b
 
-	// if p is 8 no extra padding is needed since M already fits perfectly into 8 byte blocks
-	if p != 8 {
-		// add padding to M
-		for i := 0; i < p; i++ {
-			if i == 0 {
-				M = append(M, byte(1))
-			} else {
-				M = append(M, byte(0))
+		// read a chunk
+		n, err := fi.Read(b)
+		if err != nil && err != io.EOF {
+			log.Fatal(err)
+		}
+
+		// reached end of file; use the file size as the next block
+		if n == 0 {
+			s, err := fi.Stat()
+			if err != nil {
+				log.Fatal(err)
+			}
+			binary.LittleEndian.PutUint64(b, uint64(s.Size()))
+		}
+
+		// if less than 8 bytes were read add padding
+		if n < 8 {
+			// calculate how many bytes of padding are needed
+			p := 8 - n
+
+			// add padding to buf
+			for i := 0; i < p; i++ {
+				if i == 0 {
+					b[n+i] = byte(1)
+				} else {
+					b[n+i] = byte(0)
+				}
 			}
 		}
-	}
 
-	// get l as byte slice
-	// See: https://stackoverflow.com/a/35371760
-	lb := make([]byte, 8)
-	binary.LittleEndian.PutUint64(lb, uint64(l))
+		out = f8(out, b)
 
-	// append the length to the padded M
-	I := append(M, []byte(lb)...)
-
-	// prepare a slice to store all the message blocks
-	var blocks [][]byte
-
-	// split I into message blocks (b) of 8 bytes
-	for b := I; len(b) >= 8; b = b[8:] {
-		blocks = append(blocks, b[:8])
-	}
-
-	var out []byte
-
-	// xor all the blocks
-	// the first block is xored with the IV
-	for k, v := range blocks {
-		if k == 0 {
-			xored := make([]byte, 8)
-			xorsimd.Bytes8(xored, IV, v)
-			out = xored
-		} else {
-			xored := make([]byte, 8)
-			xorsimd.Bytes8(xored, out, v)
-			out = xored
+		if n == 0 {
+			break
 		}
 	}
-	log.Print(hex.EncodeToString(out))
+	fmt.Println(hex.EncodeToString(out))
+}
+
+// compression function f for 8 byte blocks
+func f8(a []byte, b []byte) []byte {
+	x := make([]byte, 8)
+	xorsimd.Bytes8(x, a, b)
+	return x
 }

@@ -43,7 +43,7 @@ func main() {
 			binary.PutVarint(b, s.Size())
 		}
 
-		// if less than 8 bytes were read add padding
+		// if less than 32 bytes were read add padding
 		if n < 32 && n != 0 {
 			// calculate how many bytes of padding are needed
 			p := 32 - n
